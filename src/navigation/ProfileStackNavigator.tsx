@@ -7,6 +7,7 @@ import { CreatePostScreen } from '../screens/community/CreatePostScreen';
 import { SettingsScreen } from '../screens/profile/SettingsScreen';
 import { EditGoalScreen } from '../screens/profile/EditGoalScreen';
 import { ShopScreen } from '../screens/profile/ShopScreen';
+import { FollowListScreen } from '../screens/profile/FollowListScreen';
 import type { ProfileStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -24,6 +25,7 @@ export const ProfileStackNavigator = () => {
             }}
         >
             <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+            <Stack.Screen name="FollowList" component={FollowListScreen} />
             <Stack.Screen name="MyPosts" component={MyPostsScreen} />
             <Stack.Screen name="AddStory" component={AddStoryScreen} />
             <Stack.Screen name="EditPost" component={CreatePostScreen} />
