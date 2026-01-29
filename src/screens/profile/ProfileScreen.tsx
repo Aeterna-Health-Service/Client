@@ -147,19 +147,19 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                                 </Text>
                             </View>
                             <View style={styles.statDivider} />
-                            <View style={styles.socialStatItem}>
+                            <Pressable style={styles.socialStatItem} onPress={() => navigation.navigate('FollowList', { type: 'followers' })}>
                                 <Text variant="labelLarge">{user.followers}</Text>
                                 <Text variant="labelSmall" style={styles.socialStatLabel}>
                                     팔로워
                                 </Text>
-                            </View>
+                            </Pressable>
                             <View style={styles.statDivider} />
-                            <View style={styles.socialStatItem}>
+                            <Pressable style={styles.socialStatItem} onPress={() => navigation.navigate('FollowList', { type: 'following' })}>
                                 <Text variant="labelLarge">{user.following}</Text>
                                 <Text variant="labelSmall" style={styles.socialStatLabel}>
                                     팔로잉
                                 </Text>
-                            </View>
+                            </Pressable>
                         </View>
                     </View>
 
