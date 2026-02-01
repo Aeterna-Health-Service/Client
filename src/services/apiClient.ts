@@ -1,8 +1,9 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from 'react-native-config';
 
-// 환경 변수에서 API URL 가져오기 (TODO: 실제 URL로 변경)
-const API_BASE_URL = 'https://api.aeterna.app';
+// 환경 변수에서 API URL 가져오기
+const API_BASE_URL = Config.API_BASE_URL || 'http://localhost:8080';
 
 /**
  * API 클라이언트 인스턴스
