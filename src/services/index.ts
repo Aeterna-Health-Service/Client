@@ -5,3 +5,4 @@
 export * from './apiClient';
 export * from './auth';
 export * from './user';
+export * from './meal';
