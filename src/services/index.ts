@@ -8,3 +8,4 @@ export * from './user';
 export * from './meal';
 export * from './post';
 export * from './comment';
+export * from './dailySummary';
