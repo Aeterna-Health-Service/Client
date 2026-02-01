@@ -6,3 +6,5 @@ export * from './apiClient';
 export * from './auth';
 export * from './user';
 export * from './meal';
+export * from './post';
+export * from './comment';
