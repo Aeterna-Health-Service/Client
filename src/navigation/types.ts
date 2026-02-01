@@ -18,8 +18,8 @@ export type AuthStackParamList = {
  */
 export type CommunityStackParamList = {
     CommunityList: undefined;
-    PostDetail: { postId: string };
-    CreatePost: { category?: string; postId?: string };
+    PostDetail: { postId: string; boardType?: string };
+    CreatePost: { category?: string; postId?: string; boardType?: string };
 };
 
 /**

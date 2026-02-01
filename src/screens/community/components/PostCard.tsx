@@ -3,11 +3,13 @@ import { View, Pressable } from 'react-native';
 import { Text } from '../../../components';
 import { styles } from './PostCard.styles';
 import { type TCategory, CATEGORY_COLORS } from './CategoryTabs';
+import { UserAvatar } from './UserAvatar';
 
 export type TPost = {
     id: string;
+    userId: number;
     user: string;
-    avatarEmoji: string;
+    avatarEmoji?: string;
     type: string;
     category: TCategory;
     content: string;
@@ -32,10 +34,12 @@ export const PostCard = ({ post, onPress, onUserPress }: PostCardProps) => {
         <Pressable style={styles.postCard} onPress={onPress}>
             <View style={styles.postHeader}>
                 <Pressable style={styles.postUserInfo} onPress={onUserPress}>
-                    <View style={styles.postAvatar}>
-                        <Text>{post.avatarEmoji}</Text>
-                    </View>
-                    <View>
+                    <UserAvatar
+                        userId={post.userId}
+                        size="medium"
+                        fallbackEmoji={post.avatarEmoji || '👤'}
+                    />
+                    <View style={{ marginLeft: 8 }}>
                         <Text variant="labelMedium">{post.user}</Text>
                         <Text variant="labelSmall" style={styles.postTime}>
                             {post.time}
