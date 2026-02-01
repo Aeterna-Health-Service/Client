@@ -1,10 +1,22 @@
-import { apiClient, saveTokens } from '../apiClient';
-import type { TAuthResponse, TSocialProvider, TUser } from '../../types';
-
 /**
  * 인증 서비스
  * @author 김동현
  */
+
+import { apiClient, saveTokens } from '../apiClient';
+import type { TSocialProvider } from '../../types';
+import type { TUserResponseDto } from '../user/types';
+
+/**
+ * 소셜 로그인 응답 타입
+ */
+export type TSocialLoginResponse = {
+    accessToken: string;
+    refreshToken: string;
+    isNewUser: boolean;
+    userId: number;
+    user?: TUserResponseDto;
+};
 
 /**
  * 소셜 로그인
@@ -14,9 +26,9 @@ import type { TAuthResponse, TSocialProvider, TUser } from '../../types';
 export const socialLogin = async (
     provider: TSocialProvider,
     token: string
-): Promise<TAuthResponse | null> => {
+): Promise<TSocialLoginResponse | null> => {
     try {
-        const response = await apiClient.post<TAuthResponse>('/auth/social', {
+        const response = await apiClient.post<TSocialLoginResponse>('/auth/social', {
             provider,
             token,
         });
@@ -43,11 +55,12 @@ export const logout = async (): Promise<void> => {
 };
 
 /**
- * 현재 사용자 정보 조회
+ * 현재 사용자 정보 조회 (토큰 기반)
+ * @deprecated getUser 사용 권장
  */
-export const getCurrentUser = async (): Promise<TUser | null> => {
+export const getCurrentUser = async (): Promise<TUserResponseDto | null> => {
     try {
-        const response = await apiClient.get<TUser>('/auth/me');
+        const response = await apiClient.get<TUserResponseDto>('/auth/me');
         return response.data;
     } catch (error) {
         console.error('Get current user failed:', error);
@@ -59,7 +72,7 @@ export const getCurrentUser = async (): Promise<TUser | null> => {
  * 토큰 갱신
  * @param refreshToken - 리프레시 토큰
  */
-export const refreshToken = async (
+export const refreshAccessToken = async (
     refreshToken: string
 ): Promise<{ accessToken: string; refreshToken: string } | null> => {
     try {
