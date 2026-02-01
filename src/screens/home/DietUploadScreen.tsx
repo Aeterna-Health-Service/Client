@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, Alert, Image } from 'react-native';
+import { View, ScrollView, Pressable, TextInput, Alert, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Text, Button, ScreenLayout } from '../../components';
 import { styles } from './DietUploadScreen.styles';
 import { COLORS } from '../../styles';
+import { useCreateMealLogMutation, useUpdateMealLogMutation } from '../../services/meal/useMealMutation';
+import type { TMealType } from '../../services/meal/types';
 
 type UploadMode = 'photo' | 'manual';
-type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
-const MEAL_TYPES: { id: MealType; label: string }[] = [
-    { id: 'breakfast', label: '아침' },
-    { id: 'lunch', label: '점심' },
-    { id: 'dinner', label: '저녁' },
-    { id: 'snack', label: '간식' },
+const MEAL_TYPES: { id: TMealType; label: string }[] = [
+    { id: 'BREAKFAST', label: '아침' },
+    { id: 'LUNCH', label: '점심' },
+    { id: 'DINNER', label: '저녁' },
+    { id: 'SNACK', label: '간식' },
 ];
 
 /**
@@ -24,8 +25,6 @@ import type { HomeStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'DietUpload'>;
 
-// ... imports
-
 /**
  * 식단 업로드 화면
  * @author 김동현
@@ -34,15 +33,32 @@ export const DietUploadScreen = ({ route }: Props) => {
     const navigation = useNavigation();
     const { mode: initialMode, date: dateParam, initialData } = route.params || {};
 
+    // TODO: 실제 userId는 인증 상태에서 가져와야 함
+    const userId = 1;
+
     // Date Formatting
     const dateObj = dateParam ? new Date(dateParam) : new Date();
     const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
+    const apiDateFormat = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 
     const [mode, setMode] = useState<UploadMode>(initialMode || 'photo');
-    const [selectedMealType, setSelectedMealType] = useState<MealType>((initialData?.type as MealType) || 'breakfast');
+    const [selectedMealType, setSelectedMealType] = useState<TMealType>(
+        (initialData?.type?.toUpperCase() as TMealType) || 'BREAKFAST'
+    );
     const [foodName, setFoodName] = useState(initialData?.foods?.join(', ') || '');
     const [calories, setCalories] = useState(initialData?.calories ? String(initialData.calories) : '');
+    const [carbs, setCarbs] = useState('');
+    const [protein, setProtein] = useState('');
+    const [fat, setFat] = useState('');
+    const [memo, setMemo] = useState('');
     const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+    // API Mutations
+    const createMutation = useCreateMealLogMutation(userId);
+    const updateMutation = useUpdateMealLogMutation(initialData?.id ? Number(initialData.id) : 0);
+
+    const isEditing = !!initialData?.id;
+    const isLoading = createMutation.isPending || updateMutation.isPending;
 
     const handleTakePhoto = () => {
         // Mock Camera
@@ -56,7 +72,7 @@ export const DietUploadScreen = ({ route }: Props) => {
 
     const handlePickImage = () => {
         // Mock Gallery
-        Alert.alert('갤러리 열기', '갤러리가 행됩니다.', [
+        Alert.alert('갤러리 열기', '갤러리가 실행됩니다.', [
             {
                 text: '선택 (Mock)',
                 onPress: () => setPhotoUri('https://via.placeholder.com/300'),
@@ -64,7 +80,7 @@ export const DietUploadScreen = ({ route }: Props) => {
         ]);
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (mode === 'manual') {
             if (!foodName || !calories) {
                 Alert.alert('알림', '음식 이름과 칼로리를 입력해주세요.');
@@ -77,18 +93,33 @@ export const DietUploadScreen = ({ route }: Props) => {
             }
         }
 
-        // TODO: Save logic here
-        console.log('Saving diet entry:', {
-            mode,
+        const mealData = {
+            name: foodName,
+            eatenAt: apiDateFormat,
             mealType: selectedMealType,
-            foodName,
-            calories,
-            photoUri,
-        });
+            memo: memo || undefined,
+            totalKcal: parseInt(calories, 10) || 0,
+            totalCarbG: parseInt(carbs, 10) || 0,
+            totalProteinG: parseInt(protein, 10) || 0,
+            totalFatG: parseInt(fat, 10) || 0,
+        };
 
-        Alert.alert('저장 완료', '식단이 저장되었습니다.', [
-            { text: '확인', onPress: () => navigation.goBack() },
-        ]);
+        try {
+            if (isEditing) {
+                await updateMutation.mutateAsync(mealData);
+                Alert.alert('수정 완료', '식단이 수정되었습니다.', [
+                    { text: '확인', onPress: () => navigation.goBack() },
+                ]);
+            } else {
+                await createMutation.mutateAsync(mealData);
+                Alert.alert('저장 완료', '식단이 저장되었습니다.', [
+                    { text: '확인', onPress: () => navigation.goBack() },
+                ]);
+            }
+        } catch (error) {
+            console.error('MealLog save error:', error);
+            Alert.alert('오류', '식단 저장에 실패했습니다. 다시 시도해주세요.');
+        }
     };
 
     return (
@@ -99,7 +130,7 @@ export const DietUploadScreen = ({ route }: Props) => {
                     <Text style={styles.backIcon}>←</Text>
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                    <Text variant="h3">식단 기록</Text>
+                    <Text variant="h3">{isEditing ? '식단 수정' : '식단 기록'}</Text>
                     <Text variant="bodySmall" style={{ color: COLORS.gray[500] }}>
                         {formattedDate}
                     </Text>
@@ -199,6 +230,39 @@ export const DietUploadScreen = ({ route }: Props) => {
                             />
                         </View>
                         <View style={styles.inputGroup}>
+                            <Text style={styles.label}>탄수화물 (g)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="0"
+                                placeholderTextColor={COLORS.gray[400]}
+                                keyboardType="numeric"
+                                value={carbs}
+                                onChangeText={setCarbs}
+                            />
+                        </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>단백질 (g)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="0"
+                                placeholderTextColor={COLORS.gray[400]}
+                                keyboardType="numeric"
+                                value={protein}
+                                onChangeText={setProtein}
+                            />
+                        </View>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>지방 (g)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="0"
+                                placeholderTextColor={COLORS.gray[400]}
+                                keyboardType="numeric"
+                                value={fat}
+                                onChangeText={setFat}
+                            />
+                        </View>
+                        <View style={styles.inputGroup}>
                             <Text style={styles.label}>메모 (선택)</Text>
                             <TextInput
                                 style={[styles.input, styles.textArea]}
@@ -206,6 +270,8 @@ export const DietUploadScreen = ({ route }: Props) => {
                                 placeholderTextColor={COLORS.gray[400]}
                                 multiline
                                 numberOfLines={4}
+                                value={memo}
+                                onChangeText={setMemo}
                             />
                         </View>
                     </View>
@@ -216,8 +282,13 @@ export const DietUploadScreen = ({ route }: Props) => {
                     size="large"
                     style={styles.submitButton}
                     onPress={handleSubmit}
+                    disabled={isLoading}
                 >
-                    저장하기
+                    {isLoading ? (
+                        <ActivityIndicator color={COLORS.white} size="small" />
+                    ) : (
+                        isEditing ? '수정하기' : '저장하기'
+                    )}
                 </Button>
             </ScrollView>
         </ScreenLayout>
