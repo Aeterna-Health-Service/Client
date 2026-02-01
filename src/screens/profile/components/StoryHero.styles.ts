@@ -1,5 +1,5 @@
 import { StyleSheet, Dimensions } from 'react-native';
-import { COLORS, SPACING } from '../../../styles';
+import { COLORS, SPACING, RADIUS } from '../../../styles';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -69,5 +69,29 @@ export const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.5)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
+    },
+    followButton: {
+        backgroundColor: COLORS.primary[300],
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.xs + 2,
+        borderRadius: RADIUS.full,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 1.41,
+    },
+    followingButton: {
+        backgroundColor: COLORS.gray[200],
+        borderWidth: 1,
+        borderColor: COLORS.gray[400],
+    },
+    followButtonText: {
+        color: COLORS.gray[900],
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    followingButtonText: {
+        color: COLORS.gray[700],
     },
 });

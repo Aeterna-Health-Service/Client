@@ -4,6 +4,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as JotaiProvider } from 'jotai';
 import { RootNavigator } from './src/navigation';
 import { ErrorBoundary } from './src/components';
+import { configureGoogleSignIn } from './src/services/auth/socialAuth';
+
+// Google Sign In 초기화
+configureGoogleSignIn();
 
 // QueryClient 인스턴스 생성
 const queryClient = new QueryClient({

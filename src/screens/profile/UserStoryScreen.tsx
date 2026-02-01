@@ -14,6 +14,7 @@ export type UserStoryScreenProps = RootStackScreenProps<'UserStory'>;
  */
 export const UserStoryScreen = ({ navigation, route }: UserStoryScreenProps) => {
     const { userId, userName, userAvatar } = route.params;
+    const [isFollowing, setIsFollowing] = React.useState(false);
 
     // Mock Stories for other users
     const stories: TStory[] = [
@@ -28,6 +29,10 @@ export const UserStoryScreen = ({ navigation, route }: UserStoryScreenProps) => 
             storyId: story.id,
             imageUrl: story.imageUrl,
         });
+    };
+
+    const handleFollowPress = () => {
+        setIsFollowing(prev => !prev);
     };
 
     const handleBack = () => {
@@ -53,6 +58,8 @@ export const UserStoryScreen = ({ navigation, route }: UserStoryScreenProps) => 
                 stories={stories}
                 isMyProfile={false}
                 onStoryPress={handleStoryPress}
+                isFollowing={isFollowing}
+                onFollowPress={handleFollowPress}
             />
         </SafeAreaView>
     );

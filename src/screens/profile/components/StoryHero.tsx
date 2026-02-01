@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image } from 'react-native';
+import { View, Image, Pressable } from 'react-native';
 import { Text } from '../../../components';
 import { styles } from './StoryHero.styles';
 
@@ -7,6 +7,9 @@ type StoryHeroProps = {
     userName: string;
     avatarEmoji?: string;
     avatarImageUrl?: string;
+    showFollowButton?: boolean;
+    isFollowing?: boolean;
+    onFollowPress?: () => void;
 };
 
 /**
@@ -19,6 +22,9 @@ export const StoryHero = ({
     userName,
     avatarEmoji = '🧙‍♂️',
     avatarImageUrl,
+    showFollowButton = false,
+    isFollowing = false,
+    onFollowPress,
 }: StoryHeroProps) => {
     return (
         <View style={styles.heroSection}>
@@ -45,9 +51,28 @@ export const StoryHero = ({
                             <Text style={styles.avatarEmoji}>{avatarEmoji}</Text>
                         </View>
                     </View> */}
-                    <Text variant="h2" style={styles.userName}>
-                        {userName}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text variant="h2" style={styles.userName}>
+                            {userName}
+                        </Text>
+
+                        {showFollowButton && (
+                            <Pressable
+                                onPress={onFollowPress}
+                                style={[
+                                    styles.followButton,
+                                    isFollowing && styles.followingButton
+                                ]}
+                            >
+                                <Text style={[
+                                    styles.followButtonText,
+                                    isFollowing && styles.followingButtonText
+                                ]}>
+                                    {isFollowing ? '팔로잉' : '팔로우'}
+                                </Text>
+                            </Pressable>
+                        )}
+                    </View>
                 </View>
             </View>
         </View>

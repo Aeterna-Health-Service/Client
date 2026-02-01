@@ -1,10 +1,18 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { Text } from '../../components';
 import { COLORS } from '../../styles';
-import { authLoadingAtom } from '../../store';
+import {
+    authLoadingAtom,
+    isLoggedInAtom,
+    isOnboardingCompleteAtom,
+    userIdAtom,
+    userInfoAtom,
+} from '../../store';
+import { getAccessToken } from '../../services/apiClient';
+import { getUser } from '../../services/user';
 import { styles } from './SplashScreen.styles';
 import type { AuthStackScreenProps } from '../../navigation/types';
 
@@ -18,28 +26,53 @@ export type SplashScreenProps = AuthStackScreenProps<'Splash'>;
 export const SplashScreen = () => {
     const navigation = useNavigation<SplashScreenProps['navigation']>();
     const setAuthLoading = useSetAtom(authLoadingAtom);
+    const setIsLoggedIn = useSetAtom(isLoggedInAtom);
+    const setIsOnboardingComplete = useSetAtom(isOnboardingCompleteAtom);
+    const setUserInfo = useSetAtom(userInfoAtom);
+
+    // 영속 저장된 userId 가져오기
+    const userId = useAtomValue(userIdAtom);
 
     useEffect(() => {
-        // TODO: 저장된 토큰 확인 및 자동 로그인
         const checkAuth = async () => {
             try {
-                // Simulate loading
-                await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+                // 약간의 스플래시 표시 시간
+                await new Promise<void>((resolve) => setTimeout(resolve, 1000));
 
-                // TODO: AsyncStorage에서 토큰 확인
-                // const token = await AsyncStorage.getItem('accessToken');
-                // if (token) { validateToken() }
+                // 저장된 토큰 확인
+                const token = await getAccessToken();
 
+                if (token && userId) {
+                    // 토큰과 userId가 있으면 사용자 정보 조회
+                    try {
+                        const userResponse = await getUser(userId);
+
+                        if (userResponse.success && userResponse.data) {
+                            // 사용자 정보 저장 및 로그인 상태로 전환
+                            setUserInfo(userResponse.data);
+                            setIsLoggedIn(true);
+                            setIsOnboardingComplete(true);
+                            setAuthLoading(false);
+                            // 메인 화면은 RootNavigator에서 처리됨
+                            return;
+                        }
+                    } catch (userError) {
+                        console.error('Failed to fetch user:', userError);
+                    }
+                }
+
+                // 토큰 없거나 사용자 조회 실패 → 로그인 화면
                 setAuthLoading(false);
                 navigation.replace('Login');
             } catch (error) {
+                console.error('Auth check error:', error);
                 setAuthLoading(false);
                 navigation.replace('Login');
             }
         };
 
         checkAuth();
-    }, [navigation, setAuthLoading]);
+    }, [navigation, setAuthLoading, setIsLoggedIn, setIsOnboardingComplete, setUserInfo, userId]);
 
     return (
         <View style={styles.container}>

@@ -1,10 +1,7 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 import { StoryHero, ActionButtons, StoryGrid, type TStory } from '.';
-import { styles as profileStyles } from '../ProfileScreen.styles';
-
-// Note: storing styles here for now, or importing from ProfileScreen.styles if compatible
-// Ideally ProfileScreen.styles should be split too, but for now we'll reuse or duplicate the container styles needed.
+import { styles } from './StoryTabContent.styles';
 
 type TUser = {
     name: string;
@@ -21,6 +18,9 @@ type StoryTabContentProps = {
     onNewStoryPress?: () => void;
     onDeleteStory?: (storyId: string) => void;
     onStoryPress?: (story: TStory) => void;
+    // Follow functionality
+    isFollowing?: boolean;
+    onFollowPress?: () => void;
 };
 
 /**
@@ -36,6 +36,8 @@ export const StoryTabContent = ({
     onNewStoryPress,
     onDeleteStory,
     onStoryPress,
+    isFollowing,
+    onFollowPress,
 }: StoryTabContentProps) => {
     return (
         <ScrollView style={styles.scrollView} bounces={false}>
@@ -44,6 +46,9 @@ export const StoryTabContent = ({
                 userName={user.name}
                 avatarEmoji={user.avatarEmoji}
                 avatarImageUrl={user.avatarImageUrl}
+                showFollowButton={!isMyProfile}
+                isFollowing={isFollowing}
+                onFollowPress={onFollowPress}
             />
 
             {/* Action Buttons - Only for My Profile */}
@@ -65,9 +70,3 @@ export const StoryTabContent = ({
     );
 };
 
-const styles = StyleSheet.create({
-    scrollView: {
-        flex: 1,
-        backgroundColor: '#FFFFFF', // Or inherit from theme
-    }
-});

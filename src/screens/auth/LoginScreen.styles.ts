@@ -63,6 +63,9 @@ export const styles = StyleSheet.create({
         borderRadius: RADIUS.md,
         gap: SPACING.sm,
     },
+    socialButtonDisabled: {
+        opacity: 0.6,
+    },
     socialIconPlaceholder: {
         width: 24,
         height: 24,

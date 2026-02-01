@@ -28,6 +28,7 @@ export type CommunityStackParamList = {
  */
 export type ProfileStackParamList = {
     ProfileMain: undefined;
+    FollowList: { type: 'followers' | 'following' };
     MyPosts: undefined;
     AddStory: undefined;
 
