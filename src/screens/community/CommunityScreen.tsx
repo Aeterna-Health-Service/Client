@@ -1,79 +1,21 @@
 import React, { useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAtomValue } from 'jotai';
 import { Text } from '../../components';
-import { CategoryTabs, PostCard, FloatingButton, type TPost, type TCategory } from './components';
+import { CategoryTabs, PostCard, FloatingButton, type TCategory } from './components';
 import { StoryGrid, type TStory } from '../profile/components';
 import { styles } from './CommunityScreen.styles';
 import type { CommunityStackScreenProps } from '../../navigation/types';
+import { useGetPostListQuery } from '../../services/post/usePostQuery';
+import { categoryToBoardType, boardTypeToCategory } from '../../services/post/utils';
+import type { TBoardType, TPostResponseDto } from '../../services/post/types';
+import { userIdAtom } from '../../store/authAtom';
+import { COLORS } from '../../styles';
 
 export type CommunityScreenProps = CommunityStackScreenProps<'CommunityList'>;
 
-// Mock 데이터 - 게시글
-const mockPosts: TPost[] = [
-    {
-        id: '1',
-        user: '헬스왕',
-        avatarEmoji: '💪',
-        type: '오운완',
-        category: '운동꿀팁',
-        content: '오늘 가슴 운동 완료! 💪',
-        likes: 24,
-        comments: 3,
-        userLiked: false,
-        time: '2시간 전',
-    },
-    {
-        id: '2',
-        user: '다이어터',
-        avatarEmoji: '🥗',
-        type: '식단공유',
-        category: '식단추천',
-        content: '고단백 저탄고지 점심 - 닭가슴살 샐러드 추천드려요!',
-        likes: 18,
-        comments: 5,
-        userLiked: true,
-        time: '4시간 전',
-    },
-    {
-        id: '3',
-        user: '러닝맨',
-        avatarEmoji: '🏃',
-        type: '오운완',
-        category: '운동꿀팁',
-        content: '아침 10km 러닝 🏃 새벽 공기가 너무 좋았어요',
-        likes: 45,
-        comments: 8,
-        userLiked: false,
-        time: '6시간 전',
-    },
-    {
-        id: '4',
-        user: '초보헬린이',
-        avatarEmoji: '🐣',
-        type: '질문',
-        category: '자유게시판',
-        content: '헬스장 처음 가는데 어떤 운동부터 해야 할까요?',
-        likes: 12,
-        comments: 15,
-        userLiked: false,
-        time: '8시간 전',
-    },
-    {
-        id: '5',
-        user: '영양사언니',
-        avatarEmoji: '👩‍⚕️',
-        type: '정보',
-        category: '식단추천',
-        content: '다이어트 식단에 좋은 단백질 급원 TOP 5를 알려드릴게요!',
-        likes: 67,
-        comments: 22,
-        userLiked: true,
-        time: '1일 전',
-    },
-];
-
-// Mock 데이터 - 랜덤 스토리
+// Mock 데이터 - 랜덤 스토리 (Story API 구현 전까지 유지)
 const mockStories: TStory[] = Array.from({ length: 15 }).map((_, i) => ({
     id: `story-${i}`,
     imageUrl: `https://picsum.photos/400/800?random=${i + 100}`,
@@ -83,19 +25,65 @@ const mockStories: TStory[] = Array.from({ length: 15 }).map((_, i) => ({
 }));
 
 /**
+ * API 응답을 PostCard 형식으로 변환
+ * @author 김동현
+ */
+const transformPostResponse = (post: TPostResponseDto, boardType: TBoardType) => ({
+    id: post.id.toString(),
+    userId: post.userId,
+    user: post.userName,
+    avatarEmoji: '👤',
+    type: post.postType,
+    category: boardTypeToCategory(boardType),
+    content: post.title ? `${post.title}\n${post.content}` : post.content,
+    likes: post.likeCount,
+    comments: post.commentCount,
+    userLiked: post.isLiked,
+    time: formatRelativeTime(post.createdAt),
+});
+
+/**
+ * 상대적 시간 포맷
+ * @author 김동현
+ */
+const formatRelativeTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return '방금 전';
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffHours < 24) return `${diffHours}시간 전`;
+    if (diffDays < 7) return `${diffDays}일 전`;
+    return date.toLocaleDateString('ko-KR');
+};
+
+/**
  * 커뮤니티 화면 (목록)
  * 카테고리 탭 + 소셜 피드 + 새글 작성 FAB
  * @author 김동현
  */
 export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
     const [selectedCategory, setSelectedCategory] = useState<TCategory>('전체');
+    const userId = useAtomValue(userIdAtom);
 
-    const filteredPosts = selectedCategory === '전체'
-        ? mockPosts
-        : mockPosts.filter((post) => post.category === selectedCategory);
+    // 카테고리에 따른 boardType 결정
+    const boardType = categoryToBoardType(selectedCategory);
+
+    // 전체 조회 시 FREE 게시판 기본 조회 (나중에 여러 boardType 병합 가능)
+    const queryBoardType: TBoardType = boardType || 'FREE';
+
+    const { data, isLoading, isError, refetch } = useGetPostListQuery(
+        queryBoardType,
+        0,
+        20
+    );
 
     const handlePostPress = (postId: string) => {
-        navigation.navigate('PostDetail', { postId });
+        navigation.navigate('PostDetail', { postId, boardType: queryBoardType });
     };
 
     const handleStoryPress = (story: TStory) => {
@@ -110,6 +98,11 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
             category: selectedCategory !== '전체' && selectedCategory !== '스토리' ? selectedCategory : undefined,
         });
     };
+
+    // 게시글 변환
+    const posts = data?.success && data.data?.content
+        ? data.data.content.map((post) => transformPostResponse(post, queryBoardType))
+        : [];
 
     return (
         <SafeAreaView style={styles.container}>
@@ -135,16 +128,42 @@ export const CommunityScreen = ({ navigation }: CommunityScreenProps) => {
                             onStoryPress={handleStoryPress}
                         />
                     </View>
+                ) : isLoading ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                        <ActivityIndicator size="large" color={COLORS.primary[300]} />
+                        <Text variant="bodyMedium" style={{ marginTop: 12, color: COLORS.gray[500] }}>
+                            게시글을 불러오는 중...
+                        </Text>
+                    </View>
+                ) : isError ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                        <Text variant="bodyMedium" style={{ color: COLORS.gray[500] }}>
+                            게시글을 불러오지 못했습니다
+                        </Text>
+                        <Text
+                            variant="labelMedium"
+                            style={{ color: COLORS.primary[300], marginTop: 8 }}
+                            onPress={() => refetch()}
+                        >
+                            다시 시도
+                        </Text>
+                    </View>
+                ) : posts.length === 0 ? (
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 }}>
+                        <Text variant="bodyMedium" style={{ color: COLORS.gray[500] }}>
+                            아직 게시글이 없습니다
+                        </Text>
+                    </View>
                 ) : (
                     <View style={styles.feedSection}>
-                        {filteredPosts.map((post) => (
+                        {posts.map((post) => (
                             <PostCard
                                 key={post.id}
                                 post={post}
                                 onPress={() => handlePostPress(post.id)}
                                 onUserPress={() =>
                                     navigation.navigate('UserStory', {
-                                        userId: post.user, // Using username as ID for mock
+                                        userId: post.user,
                                         userName: post.user,
                                         userAvatar: post.avatarEmoji,
                                     })

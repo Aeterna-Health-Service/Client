@@ -2,11 +2,13 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from '../../../components';
 import { styles } from './CommentItem.styles';
+import { UserAvatar } from './UserAvatar';
 
 export type TComment = {
     id: string;
+    userId: number;
     userName: string;
-    avatarEmoji: string;
+    avatarEmoji?: string;
     content: string;
     time: string;
 };
@@ -22,9 +24,11 @@ type CommentItemProps = {
 export const CommentItem = ({ comment }: CommentItemProps) => {
     return (
         <View style={styles.container}>
-            <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{comment.avatarEmoji}</Text>
-            </View>
+            <UserAvatar
+                userId={comment.userId}
+                size="small"
+                fallbackEmoji={comment.avatarEmoji || '👤'}
+            />
             <View style={styles.content}>
                 <View style={styles.header}>
                     <Text variant="labelMedium" style={styles.userName}>
