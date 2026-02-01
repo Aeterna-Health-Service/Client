@@ -1,10 +1,19 @@
-import React, { useCallback } from 'react';
-import { View, ScrollView, Keyboard, Pressable } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, ScrollView, Keyboard, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useAtom, useSetAtom } from 'jotai';
+import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { Text, Button } from '../../components';
-import { onboardingStepAtom, onboardingDataAtom, isOnboardingCompleteAtom, isLoggedInAtom } from '../../store';
+import {
+    onboardingStepAtom,
+    onboardingDataAtom,
+    isOnboardingCompleteAtom,
+    isLoggedInAtom,
+    userIdAtom,
+    userInfoAtom,
+} from '../../store';
+import { registerUser, getUser } from '../../services/user';
+import { toUserRequestDto } from '../../utils/userMapper';
 import { BasicInfoStep } from './components/BasicInfoStep';
 import { ActivityLevelStep } from './components/ActivityLevelStep';
 import { GoalSettingStep } from './components/GoalSettingStep';
@@ -27,6 +36,13 @@ export const OnboardingScreen = () => {
     const [data, setData] = useAtom(onboardingDataAtom);
     const setIsOnboardingComplete = useSetAtom(isOnboardingCompleteAtom);
     const setIsLoggedIn = useSetAtom(isLoggedInAtom);
+    const setUserInfo = useSetAtom(userInfoAtom);
+
+    // 소셜 로그인에서 받은 userId (없으면 개발 모드로 진입한 경우)
+    const userId = useAtomValue(userIdAtom);
+    const setUserId = useSetAtom(userIdAtom);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     /**
      * 현재 단계의 필수 값 검증
@@ -72,11 +88,39 @@ export const OnboardingScreen = () => {
     };
 
     const handleComplete = async () => {
-        // TODO: 서버에 온보딩 데이터 전송
-        console.log('Onboarding data:', data);
+        setIsSubmitting(true);
 
-        setIsOnboardingComplete(true);
-        setIsLoggedIn(true);
+        try {
+            // 온보딩 데이터를 API DTO로 변환
+            const requestData = toUserRequestDto(data);
+
+            // 회원가입 API 호출
+            const response = await registerUser(requestData);
+
+            if (response.success && response.data) {
+                // 신규 userId 저장 (소셜 로그인 없이 온 경우)
+                if (!userId) {
+                    setUserId(response.data);
+                }
+
+                // 사용자 정보 조회
+                const userResponse = await getUser(userId || response.data);
+
+                if (userResponse.success && userResponse.data) {
+                    setUserInfo(userResponse.data);
+                }
+
+                setIsOnboardingComplete(true);
+                setIsLoggedIn(true);
+            } else {
+                Alert.alert('오류', '회원가입에 실패했습니다. 다시 시도해주세요.');
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            Alert.alert('오류', '회원가입 중 문제가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const renderStep = () => {
@@ -142,16 +186,22 @@ export const OnboardingScreen = () => {
             {/* Footer - Fixed at bottom, not affected by keyboard */}
             <SafeAreaView edges={['bottom']} style={styles.footerSafeArea}>
                 <View style={styles.footer}>
-                    <Button variant="ghost" size="medium" onPress={handleBack}>
+                    <Button variant="ghost" size="medium" onPress={handleBack} disabled={isSubmitting}>
                         {step === 1 ? '취소' : '이전'}
                     </Button>
                     <Button
                         variant="primary"
                         size="large"
                         onPress={handleNext}
-                        disabled={!stepValid}
+                        disabled={!stepValid || isSubmitting}
                     >
-                        {step === TOTAL_STEPS ? '완료' : '다음'}
+                        {isSubmitting ? (
+                            <ActivityIndicator size="small" color="#333" />
+                        ) : step === TOTAL_STEPS ? (
+                            '완료'
+                        ) : (
+                            '다음'
+                        )}
                     </Button>
                 </View>
             </SafeAreaView>

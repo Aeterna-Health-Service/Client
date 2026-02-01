@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Pressable, Alert } from 'react-native';
+import { View, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { Text } from '../../components';
-import { isLoggedInAtom, isOnboardingCompleteAtom } from '../../store';
+import { isLoggedInAtom, isOnboardingCompleteAtom, userIdAtom, userInfoAtom } from '../../store';
+import { useGetUserQuery } from '../../services/user/useUserQuery';
 import { StoryTabContent, type TStory } from './components';
 import { styles } from './ProfileScreen.styles';
 import type { ProfileStackScreenProps } from '../../navigation/types';
@@ -28,22 +29,37 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         { id: '5', imageUrl: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400' },
         { id: '6', imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400' },
     ]);
+
     const setIsLoggedIn = useSetAtom(isLoggedInAtom);
     const setIsOnboardingComplete = useSetAtom(isOnboardingCompleteAtom);
+    const setUserId = useSetAtom(userIdAtom);
+    const setUserInfo = useSetAtom(userInfoAtom);
 
-    // 임시 사용자 데이터
-    const user = {
-        name: '김동현',
-        level: 5,
-        xp: 1250,
-        achievements: 12,
-        followers: 48,
-        following: 32,
-    };
+    // 서버에서 사용자 정보 조회
+    const userId = useAtomValue(userIdAtom);
+    const { data: userResponse, isLoading } = useGetUserQuery(userId ?? 0);
+    const userInfo = userResponse?.data;
+
+    // 캐시된 사용자 정보 (로딩 중일 때 사용)
+    const cachedUserInfo = useAtomValue(userInfoAtom);
+
+    // 실제 사용자 데이터 (서버 데이터 우선, 없으면 캐시)
+    const user = userInfo || cachedUserInfo;
 
     const handleLogout = () => {
-        setIsLoggedIn(false);
-        setIsOnboardingComplete(false);
+        Alert.alert('로그아웃', '정말 로그아웃하시겠습니까?', [
+            { text: '취소', style: 'cancel' },
+            {
+                text: '로그아웃',
+                style: 'destructive',
+                onPress: () => {
+                    setIsLoggedIn(false);
+                    setIsOnboardingComplete(false);
+                    setUserId(null);
+                    setUserInfo(null);
+                },
+            },
+        ]);
     };
 
     const handleNewStoryPress = () => {
@@ -59,20 +75,16 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
     };
 
     const handleDeleteStory = (storyId: string) => {
-        Alert.alert(
-            '스토리 삭제',
-            '정말 이 스토리를 삭제하시겠습니까?',
-            [
-                { text: '취소', style: 'cancel' },
-                {
-                    text: '삭제',
-                    style: 'destructive',
-                    onPress: () => {
-                        setStories((prev) => prev.filter((s) => s.id !== storyId));
-                    },
+        Alert.alert('스토리 삭제', '정말 이 스토리를 삭제하시겠습니까?', [
+            { text: '취소', style: 'cancel' },
+            {
+                text: '삭제',
+                style: 'destructive',
+                onPress: () => {
+                    setStories((prev) => prev.filter((s) => s.id !== storyId));
                 },
-            ]
-        );
+            },
+        ]);
     };
 
     const handleStoryPress = (story: TStory) => {
@@ -82,6 +94,16 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         });
     };
 
+    // 로딩 중이고 캐시도 없는 경우
+    if (isLoading && !cachedUserInfo) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" />
+                <Text style={{ marginTop: 16 }}>로딩 중...</Text>
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
@@ -89,9 +111,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                 <Text variant="h1">마이</Text>
                 {activeTab === 'story' && (
                     <Pressable onPress={handleToggleEditMode} style={styles.editButton}>
-                        <Text style={styles.editButtonText}>
-                            {isEditMode ? '완료' : '편집'}
-                        </Text>
+                        <Text style={styles.editButtonText}>{isEditMode ? '완료' : '편집'}</Text>
                     </Pressable>
                 )}
             </View>
@@ -100,7 +120,10 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
             <View style={styles.tabButtons}>
                 <Pressable
                     style={[styles.tabButton, activeTab === 'profile' && styles.tabButtonActive]}
-                    onPress={() => { setActiveTab('profile'); setIsEditMode(false); }}
+                    onPress={() => {
+                        setActiveTab('profile');
+                        setIsEditMode(false);
+                    }}
                 >
                     <Text
                         variant="labelMedium"
@@ -130,38 +153,61 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                             <Text style={styles.avatarEmoji}>🧙‍♂️</Text>
                         </View>
                         <Text variant="h2" style={styles.userName}>
-                            {user.name}
+                            {user?.name || user?.nickname || '사용자'}
                         </Text>
                         <View style={styles.levelBadgeLarge}>
                             <Text variant="labelMedium" style={styles.levelText}>
-                                Lv.{user.level}
+                                Lv.{Math.floor((user?.goalKcal || 0) / 500) || 1}
                             </Text>
                         </View>
 
                         {/* Social Stats */}
                         <View style={styles.socialStats}>
                             <View style={styles.socialStatItem}>
-                                <Text variant="labelLarge">{user.achievements}</Text>
+                                <Text variant="labelLarge">12</Text>
                                 <Text variant="labelSmall" style={styles.socialStatLabel}>
                                     업적
                                 </Text>
                             </View>
                             <View style={styles.statDivider} />
-                            <Pressable style={styles.socialStatItem} onPress={() => navigation.navigate('FollowList', { type: 'followers' })}>
-                                <Text variant="labelLarge">{user.followers}</Text>
+                            <Pressable
+                                style={styles.socialStatItem}
+                                onPress={() => navigation.navigate('FollowList', { type: 'followers' })}
+                            >
+                                <Text variant="labelLarge">48</Text>
                                 <Text variant="labelSmall" style={styles.socialStatLabel}>
                                     팔로워
                                 </Text>
                             </Pressable>
                             <View style={styles.statDivider} />
-                            <Pressable style={styles.socialStatItem} onPress={() => navigation.navigate('FollowList', { type: 'following' })}>
-                                <Text variant="labelLarge">{user.following}</Text>
+                            <Pressable
+                                style={styles.socialStatItem}
+                                onPress={() => navigation.navigate('FollowList', { type: 'following' })}
+                            >
+                                <Text variant="labelLarge">32</Text>
                                 <Text variant="labelSmall" style={styles.socialStatLabel}>
                                     팔로잉
                                 </Text>
                             </Pressable>
                         </View>
                     </View>
+
+                    {/* User Info Card */}
+                    {user && (
+                        <View style={styles.menuSection}>
+                            <View style={styles.menuItem}>
+                                <Text variant="bodyMedium">📧 {user.email || '-'}</Text>
+                            </View>
+                            <View style={styles.menuItem}>
+                                <Text variant="bodyMedium">
+                                    🎯 목표: {user.goalType === 'DIET' ? '감량' : user.goalType === 'BULK' ? '증량' : '유지'}
+                                </Text>
+                            </View>
+                            <View style={styles.menuItem}>
+                                <Text variant="bodyMedium">🔥 목표 칼로리: {user.goalKcal || '-'} kcal</Text>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Menu Items */}
                     <View style={styles.menuSection}>
@@ -188,7 +234,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                 /* Story Tab Content */
                 <StoryTabContent
                     user={{
-                        name: user.name,
+                        name: user?.name || user?.nickname || '사용자',
                         avatarEmoji: '🧙‍♂️',
                     }}
                     stories={stories}
@@ -199,8 +245,7 @@ export const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
                     onDeleteStory={handleDeleteStory}
                     onStoryPress={handleStoryPress}
                 />
-            )
-            }
-        </SafeAreaView >
+            )}
+        </SafeAreaView>
     );
 };
